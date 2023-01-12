@@ -35,14 +35,6 @@ def fixGrammar(paragraph):
 def fixStyle(paragraph):
     #make sure there are no illogical sentences
 
-    prompt = "Consider this paragraph: " + paragraph + "\nList any sentences that don't make any sense, separating each sentence with a dollar sign. If all sentences make sense, output a dollar sign."
-    illogical = openai.Completion.create(
-        model="text-davinci-001",
-        prompt=prompt,
-        max_tokens=2000,
-        temperature=0
-    ).choices[0].text.strip().split("$")
-
     contractions = []
     
     allContractions = []
@@ -71,7 +63,7 @@ def fixStyle(paragraph):
     if response[0] == "None":
         firstPerson = []
 
-    return [illogical, contractions, firstPerson]
+    return [contractions, firstPerson]
 
 def giveAdvice(intro, body, outro, paragraph):
     type = "introduction"
@@ -98,13 +90,13 @@ def main(paragraphs):
 
         grammar = fixGrammar(paragraphs[i].strip())
         style = fixStyle(paragraphs[i])
+        #style = [[], [], []]
         advice = giveAdvice(intro, body, False, paragraphs[i])
         
         current["grammar"] = grammar
         current["advice"] = advice
-        current["illogical"] = style[0]
-        current["contractions"] = style[1]
-        current["first person"] = style[2]
+        current["contractions"] = style[0]
+        current["first person"] = style[1]
         output.append(current)
     
     return output
