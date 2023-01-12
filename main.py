@@ -1,22 +1,17 @@
 import openai
-from apikey import apikey
+import os
 
-openai.api_key = apikey
-
-f = open("essay.txt","r")
-paragraphs = []
-
-for line in f:
-    paragraphs.append(line)
-
-f.close()
+openai.api_key = os.getenv("OPEN_API_KEY")
 
 def separateBy(text, sep):
     ret = []
     for line in text.split("\n"):
         if len(line) <= 1:
             continue
-        before, after = line.split(sep)
+        splitUp = line.split(sep)
+        if len(splitUp) != 2:
+            continue
+        before, after = splitUp[0], splitUp[1]
         before.strip()
         after.strip()
         if before != after:
@@ -27,7 +22,7 @@ def fixGrammar(paragraph):
 
     prompt = "Consider this paragraph: " + paragraph + "\nList all grammar mistakes on separate lines. For each grammar mistake, write the mistake and correction with a dollar sign in between. If there are no grammar mistakes, output None."
     response = openai.Completion.create(
-        model="text-davinci-003",
+        model="text-davinci-001",
         prompt=prompt,
         max_tokens=1000,
         temperature=0
@@ -42,29 +37,32 @@ def fixStyle(paragraph):
 
     prompt = "Consider this paragraph: " + paragraph + "\nList any sentences that don't make any sense, separating each sentence with a dollar sign. If all sentences make sense, output a dollar sign."
     illogical = openai.Completion.create(
-        model="text-davinci-003",
+        model="text-davinci-001",
         prompt=prompt,
         max_tokens=2000,
         temperature=0
-    ).choices[0].text.split("$")
-    if illogical[1] == '':
-        illogical = []
+    ).choices[0].text.strip().split("$")
 
-    #formalize everything
-    prompt = "List all of the contractions in the following paragraph on separate lines (if there are no contractions write None): " + paragraph 
-    response = openai.Completion.create(
-        model="text-davinci-003",
-        prompt=prompt,
-        max_tokens=2000,
-        temperature=0
-    )
-    contractions = response.choices[0].text.strip().split("\n")
-    if contractions[0] == "None":
-        contractions = []
+    contractions = []
+    
+    allContractions = []
+    f = open("contractionList.txt", "r")
+    for line in f:
+        a, b = line.split(":")
+        a.strip()
+        b.strip()
+        a.replace("(informal)", "")
+        a.replace("(formal)", "")
+        allContractions.append((a, b))
+    f.close()
+    lowered = paragraph.lower()
+    for c in allContractions:
+        if c[0] in lowered:
+            contractions.append(c)
     
     prompt = "Consider this paragraph: " + paragraph + "\nList every sentence written in first person on a separate line. If there are no sentences written in first person, output None."
     response = openai.Completion.create(
-        model="text-davinci-003",
+        model="text-davinci-001",
         prompt=prompt,
         max_tokens=1000,
         temperature=0
@@ -83,11 +81,11 @@ def giveAdvice(intro, body, outro, paragraph):
         type = "conclusion"
     prompt = "Consider this " + type + " paragraph of an essay: " + paragraph + " What advice is there to improve it?"
     return openai.Completion.create(
-        model="text-davinci-003",
+        model="text-davinci-001",
         prompt=prompt,
         max_tokens=1000,
         temperature=0.75
-    ).choices[0].text
+    ).choices[0].text.strip()
 
 def main(paragraphs):
     output = []
@@ -98,7 +96,7 @@ def main(paragraphs):
         outro = (i + 1 == len(paragraphs))
         body = not intro and not outro
 
-        grammar = fixGrammar(paragraphs[i])
+        grammar = fixGrammar(paragraphs[i].strip())
         style = fixStyle(paragraphs[i])
         advice = giveAdvice(intro, body, False, paragraphs[i])
         
@@ -110,7 +108,3 @@ def main(paragraphs):
         output.append(current)
     
     return output
-
-fixes = main(paragraphs)
-
-print(fixes)
